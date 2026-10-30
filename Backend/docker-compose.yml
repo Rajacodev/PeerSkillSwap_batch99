@@ -1,0 +1,62 @@
+# Runs the full stack: frontend (public), API and MongoDB (private).
+#
+# Expected folder layout, with both project folders side by side:
+#   PeerSkillSwap/
+#     Backend/   <- this file, plus .env (copied from .env.example)
+#     Frontend/
+#
+# Start:  docker compose up -d --build
+# Stop:   docker compose down          (add -v to also delete data)
+
+name: peerskillswap
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-peerskillswap}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in Backend/.env}
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/27017' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  backend:
+    build:
+      context: .
+    image: peerskillswap-backend:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      FLASK_ENV: production
+      MONGODB_URI: mongodb://${MONGO_ROOT_USER:-peerskillswap}:${MONGO_ROOT_PASSWORD}@mongo:27017/peerskillswap?authSource=admin
+      CORS_ORIGINS: ${PUBLIC_ORIGIN:-http://localhost:8080}
+      TRUST_PROXY: "true"
+      LOG_TO_FILE: "false"
+      ENABLE_API_DOCS: "false"
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ../Frontend
+    image: peerskillswap-frontend:latest
+    restart: unless-stopped
+    ports:
+      - "${PUBLIC_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  mongo_data:
+  uploads_data:

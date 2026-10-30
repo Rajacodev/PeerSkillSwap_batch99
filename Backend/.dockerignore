@@ -1,0 +1,24 @@
+# Secrets and local state never go into the image.
+.env
+.env.*
+!.env.example
+logs/
+uploads/
+
+# Development-only files.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+tests/
+screenshots/
+*.zip
+*.postman_collection.json
+
+# Repository and tooling metadata.
+.git/
+.github/
+.gitignore
+.dockerignore
+Dockerfile
+docker-compose.yml
